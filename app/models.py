@@ -1,18 +1,14 @@
 # Third Party
-from http.client import CannotSendHeader
 from django.db.models import (
     CASCADE,
     BooleanField,
     CharField,
-    DateTimeField,
     DecimalField,
     ForeignKey,
     IntegerField,
     Model,
-    SmallIntegerField,
     TimeField,
 )
-from django.utils.functional import unpickle_lazyobject
 
 # Library
 from app.enums import TransportTypeEnum
@@ -107,6 +103,8 @@ class Schedule(Model):
     )
     arrival = TimeField(
         'Время прибытия',
+        null=True,
+        blank=True,
     )
     days = CharField(
         'Дни курсирования нитки',
@@ -114,6 +112,8 @@ class Schedule(Model):
     )
     departure = TimeField(
         'Время отправления',
+        null=True,
+        blank=True,
     )
     except_days = CharField(
         'Дни, в которые нитка не курсирует',

@@ -3,20 +3,21 @@
 import os
 
 from collections.abc import Mapping, Sequence
-from django.core.exceptions import ValidationError
-from django.db.models import Q
+
 # Third Party
 import httpx
 
 from dotenv import load_dotenv
 
 # Library
-from app.models import Station
-from app.models import Schedule
-from app.models import Thread
-from app.models import Carrier
-from app.models import OtherCarrierCode
-from app.models import TransportSubtype
+from app.models import (
+    Carrier,
+    OtherCarrierCode,
+    Schedule,
+    Station,
+    Thread,
+    TransportSubtype,
+)
 
 
 load_dotenv()
@@ -25,20 +26,18 @@ API_KEY = os.getenv('API_KEY')
 
 def get_stations(latitude: str, longitude: str) -> httpx.Response:
     """Получить станции по координатам"""
-    return httpx.get(f'https://api.rasp.yandex.net/v3.0/nearest_stations/?apikey={API_KEY}&format=json&lat={latitude}&lng={longitude}&distance=50&lang=ru_RU')
+    return httpx.get(
+        f'https://api.rasp.yandex.net/v3.0/nearest_stations/?apikey={API_KEY}&format=json&lat={latitude}&lng={longitude}&distance=50&lang=ru_RU'
+    )
 
 
 def get_schedule(code: str) -> httpx.Response:
     """Получить расписания станции."""
-    return httpx.get(f'https://api.rasp.yandex.net/v3.0/schedule/?apikey={API_KEY}&station={code}&direction=all')
+    return httpx.get(
+        f'https://api.rasp.yandex.net/v3.0/schedule/?apikey={API_KEY}&station={code}&direction=all'
+    )
 
-
-def create_line(station: Station) -> str:
-    """Создает удобочитаемую строку с информацией о станции."""
-    return f'<br> <a href="{station.code}">{station.code}</a> {station.title} --- {station.station_type_name}'
-
-
-def save_or_update_stations(stations: Sequence[Mapping]) -> Sequence[Station]:
+def save_or_update_stations(stations: Sequence[Mapping]) -> None:
     """Обновляет или создает новые станции."""
 
     list_stations = []
@@ -68,7 +67,7 @@ def save_or_update_stations(stations: Sequence[Mapping]) -> Sequence[Station]:
                 station_type=station['station_type'],
                 station_type_name=station['station_type_name'],
                 title=station['title'],
-                transport_type= station['transport_type'],
+                transport_type=station['transport_type'],
                 type=station['type'],
             )
         )
@@ -80,11 +79,8 @@ def save_or_update_stations(stations: Sequence[Mapping]) -> Sequence[Station]:
         unique_fields=['code'],
     )
 
-    return list_stations
 
-
-
-def save_or_update_schedules(schedules: Sequence[Mapping], code: str):
+def save_or_update_schedules(schedules: Sequence[Mapping], code: str) -> None:
     """Обновляет или создает расписание станции."""
 
     list_schedules = []
@@ -98,7 +94,7 @@ def save_or_update_schedules(schedules: Sequence[Mapping], code: str):
         'platform',
         'stops',
         'terminal',
-        'thread'
+        'thread',
     ]
     for schedule in schedules:
         transport_subtype, created = TransportSubtype.objects.update_or_create(
@@ -106,11 +102,14 @@ def save_or_update_schedules(schedules: Sequence[Mapping], code: str):
             defaults={
                 'color': schedule['thread']['transport_subtype']['color'],
                 'title': schedule['thread']['transport_subtype']['title'],
-            }
+            },
         )
         transport_subtype.save()
 
-        other_carrier_code, created = OtherCarrierCode.objects.update_or_create(
+        (
+            other_carrier_code,
+            created,
+        ) = OtherCarrierCode.objects.update_or_create(
             iata=schedule['thread']['carrier']['codes']['iata'],
             icao=schedule['thread']['carrier']['codes']['icao'],
             sirena=schedule['thread']['carrier']['codes']['sirena'],
@@ -118,29 +117,29 @@ def save_or_update_schedules(schedules: Sequence[Mapping], code: str):
                 'iata': schedule['thread']['carrier']['codes']['iata'],
                 'icao': schedule['thread']['carrier']['codes']['icao'],
                 'sirena': schedule['thread']['carrier']['codes']['sirena'],
-            }
+            },
         )
         other_carrier_code.save()
         carrier, created = Carrier.objects.update_or_create(
             code=schedule['thread']['carrier']['code'],
             defaults={
-                'title':schedule['thread']['carrier']['title'],
-                'codes':other_carrier_code,
-            }
+                'title': schedule['thread']['carrier']['title'],
+                'codes': other_carrier_code,
+            },
         )
         carrier.save()
         thread, created = Thread.objects.update_or_create(
             uid=schedule['thread']['uid'],
             defaults={
-                'carrier':carrier,
-                'express_type':schedule['thread']['express_type'],
-                'number':schedule['thread']['number'],
-                'short_title':schedule['thread']['short_title'],
-                'title':schedule['thread']['title'],
-                'transport_type':schedule['thread']['transport_type'],
-                'vehicle':schedule['thread']['vehicle'],
-                'transport_subtype':transport_subtype,
-            }
+                'carrier': carrier,
+                'express_type': schedule['thread']['express_type'],
+                'number': schedule['thread']['number'],
+                'short_title': schedule['thread']['short_title'],
+                'title': schedule['thread']['title'],
+                'transport_type': schedule['thread']['transport_type'],
+                'vehicle': schedule['thread']['vehicle'],
+                'transport_subtype': transport_subtype,
+            },
         )
         thread.save()
 
@@ -165,4 +164,12 @@ def save_or_update_schedules(schedules: Sequence[Mapping], code: str):
         unique_fields=['code'],
     )
 
-    return list_schedules
+
+def create_line_station(code: str, title: str, station_type_name: str) -> str:
+    """Создает удобочитаемую строку с информацией о станции."""
+    return f'<br> <a href="{code}">{code}</a> {title} --- {station_type_name}'
+
+
+def create_line_schedule(title: str, days: str, arrival: str, departure: str) -> str:
+    """Создает удобочитаемую строку с информацией о расписании."""
+    return f'<br>Маршрут: {title}<br>Расписание: {days}<br> Время прибытия: {arrival}<br> Время отправления: {departure}<br>'
