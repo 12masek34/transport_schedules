@@ -10,7 +10,9 @@ from django.db.models import (
     IntegerField,
     Model,
     SmallIntegerField,
+    TimeField,
 )
+from django.utils.functional import unpickle_lazyobject
 
 # Library
 from app.enums import TransportTypeEnum
@@ -89,24 +91,28 @@ class Station(Model):
         null=True,
     )
     shedule = ForeignKey(
-        'Shedule',
+        'Schedule',
         on_delete=CASCADE,
         null=True,
         blank=True,
     )
 
 
-class Shedule(Model):
+class Schedule(Model):
     """Рейсы"""
-
-    arrival = DateTimeField(
+    code = CharField(
+        'Код станции в системе кодирования Яндекс Расписаний.',
+        max_length=20,
+        unique=True,
+    )
+    arrival = TimeField(
         'Время прибытия',
     )
     days = CharField(
         'Дни курсирования нитки',
         max_length=256,
     )
-    departure = DateTimeField(
+    departure = TimeField(
         'Время отправления',
     )
     except_days = CharField(
@@ -130,6 +136,8 @@ class Shedule(Model):
     terminal = CharField(
         'Терминал аэропорта',
         max_length=256,
+        null=True,
+        blank=True,
     )
     thread = ForeignKey(
         'Thread',
@@ -143,7 +151,7 @@ class Thread(Model):
     """Информация о нитке."""
 
     carrier = ForeignKey(
-        'CarrierCode',
+        'Carrier',
         on_delete=CASCADE,
     )
     express_type = CharField(
@@ -186,6 +194,7 @@ class Thread(Model):
         max_length=100,
         null=True,
         blank=True,
+        unique=True,
     )
     vehicle = CharField(
         'Название транспортного средства.',
@@ -207,6 +216,7 @@ class TransportSubtype(Model):
     code = CharField(
         'Код подтипа транспорта',
         max_length=128,
+        unique=True,
         null=True,
         blank=True,
     )
@@ -218,11 +228,12 @@ class TransportSubtype(Model):
     )
 
 
-class CarrierCode(Model):
+class Carrier(Model):
     """Информация о перевозчике."""
 
     code = IntegerField(
-        'од перевозчика в системе кодирования Яндекс Расписаний.',
+        'Код перевозчика в системе кодирования Яндекс Расписаний.',
+        unique=True,
     )
     title = CharField(
         'Название перевозчика.',
@@ -242,18 +253,21 @@ class OtherCarrierCode(Model):
     icao = CharField(
         'Код перевозчика в системе кодирования ICAO',
         max_length=256,
+        unique=True,
         blank=True,
         null=True,
     )
     sirena = CharField(
         'Код перевозчика в системе кодирования Sirena',
         max_length=256,
+        unique=True,
         blank=True,
         null=True,
     )
     iata = CharField(
         'Код перевозчика в системе кодирования IATA.',
         max_length=256,
+        unique=True,
         blank=True,
         null=True,
     )
